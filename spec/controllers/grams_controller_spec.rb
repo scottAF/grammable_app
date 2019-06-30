@@ -3,8 +3,23 @@ require 'rails_helper'
 RSpec.describe GramsController, type: :controller do
 
   describe "gram#destroy action" do
+    it "shouldn't allow users who didn't create the gram to destroy it" do
+      gram = FactoryBot.create(:gram)
+      user = FactoryBot.create(:user)
+      sign_in user
+      delete :destroy, params: { id: gram.id }
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it "shouldn't let unauthenticated users destroy a gram" do
+      gram = FactoryBot.create(:gram)
+      delete :destroy, params: { id: gram.id }
+      expect(response).to redirect_to new_user_session_path
+    end
+
     it "should allow user to destroy grams" do
       gram = FactoryBot.create(:gram)
+      sign_in gram.user
       delete :destroy, params: { id: gram.id }
       expect(response).to redirect_to root_path
       gram = Gram.find_by_id(gram.id)
@@ -12,14 +27,31 @@ RSpec.describe GramsController, type: :controller do
     end
 
     it "should return a 404 message if we cannot find a gram with the id that is specified" do
+      user = FactoryBot.create(:user)
+      sign_in user
       delete :destroy, params: { id: 'SPACEDUCKS' }
       expect(response).to have_http_status(:not_found)
     end
   end
 
   describe "gram#update action" do
+    it "shouldn't let users who didn't create the gram update it" do
+      gram = FactoryBot.create(:gram)
+      user = FactoryBot.create(:user)
+      sign_in user
+      patch :update, params: { id: gram.id, gram: { message: 'WHAT' } }
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it "shouldn't let unauthenticated users destroy a gram" do
+      gram = FactoryBot.create(:gram)
+      delete :destroy, params: { id: gram.id }
+      expect(response).to redirect_to new_user_session_path
+    end
+
     it "should allow users to successfully update gram" do
       gram = FactoryBot.create(:gram, message: "Initial Value")
+      sign_in gram.user
       patch :update, params: { id: gram.id, gram: { message: 'Changed' } }
       expect(response).to redirect_to root_path
       gram.reload
@@ -27,12 +59,15 @@ RSpec.describe GramsController, type: :controller do
     end
 
     it "should have http 404 error if the gram can't be found" do
+      user = FactoryBot.create(:user)
+      sign_in user
       patch :update, params: { id: "BEATBOX", gram: { message: 'Changed' } }
       expect(response).to have_http_status(:not_found)
     end
 
     it "should render the edit form with an http status of unprocessable_entity" do
       gram = FactoryBot.create(:gram, message: "Initial Value")
+      sign_in gram.user
       patch :update, params: { id: gram.id, gram: { message: '' } }
       expect(response).to have_http_status(:unprocessable_entity)
       gram.reload
@@ -41,11 +76,23 @@ RSpec.describe GramsController, type: :controller do
   end
 
   describe "gram#edit action" do
-    it "should succeffully show the edit form if the gram is found" do 
+    it "shouldn't let a user who did not create the gram edit a gram" do
+      gram = FactoryBot.create(:gram)
       user = FactoryBot.create(:user)
       sign_in user
-
+      get :edit, params: { id: gram.id }
+      expect(response).to have_http_status(:forbidden)
+    end
+  
+    it "shouldn't let unauthenticated users destroy a gram" do
       gram = FactoryBot.create(:gram)
+      delete :destroy, params: { id: gram.id }
+      expect(response).to redirect_to new_user_session_path
+    end
+
+    it "should succeffully show the edit form if the gram is found" do     
+      gram = FactoryBot.create(:gram)
+      sign_in gram.user
       get :edit, params: { id: gram.id }
       expect(response).to have_http_status(:success)
     end
@@ -53,26 +100,19 @@ RSpec.describe GramsController, type: :controller do
     it "should return a 404 error message if the gram is not found" do
       user = FactoryBot.create(:user)
       sign_in user
-
       get :edit, params: { id: 'TACOCAT' }
       expect(response).to have_http_status(:not_found)
     end
   end
   
   describe "gram#show action" do
-    it "should successfully show the page if the gram is found" do
-      user = FactoryBot.create(:user)
-      sign_in user
-      
+    it "should successfully show the page if the gram is found" do     
       gram = FactoryBot.create(:gram)
       get :show, params: { id: gram.id }
       expect(response).to have_http_status(:success)
     end
 
-    it "should return a 404 error if the gram is not found" do
-      user = FactoryBot.create(:user)
-      sign_in user
-      
+    it "should return a 404 error if the gram is not found" do           
       get :show, params: { id: 'TACOCAT' }
       expect(response).to have_http_status(:not_found)
     end
